@@ -25,7 +25,7 @@ public class Main {
     private final int COLUMNS = 10;
     private final int ROWS_ON_PAGE1 = 50;
     private final int ROWS_ON_PAGE2 = 80;
-    private final int NUM_QUESTIONS;// = ROWS_ON_PAGE1+ROWS_ON_PAGE2;
+    //private final int NUM_QUESTIONS;
     private Set<Point> idBoxPixels;
     private boolean doubleSided;
     private char[][] responses;//1st dimension=number of students; 2nd dim=number of questions
@@ -35,9 +35,10 @@ public class Main {
         //final int SCALED_WIDTH = 1000;//500
         //final int SCALED_HEIGHT = 1294;//547
         //doubleSided = (ds == 2);
-        NUM_QUESTIONS = n;
+        //NUM_QUESTIONS = n;
         idBoxPixels = new HashSet<>();
-        int numTests;
+        int numTests = 0;
+        String[] ids = new String[0];
         //TODO calculate this programmatically
         try {
             //read in image data
@@ -46,7 +47,7 @@ public class Main {
             List<BufferedImage> pics = extractImages(fis);
             int guess = guess1or2sided(new GrayImage(pics.get(0)), new GrayImage(pics.get(1)));
             doubleSided = (guess == 2);
-            String[] ids;
+
             if (doubleSided) {
                 numTests = pics.size()/2;
                 responses = new char[pics.size()][ROWS_ON_PAGE1+ROWS_ON_PAGE2];
@@ -63,7 +64,7 @@ public class Main {
                     }
                     image = new GrayImage(pics.get(i*2+1));
                     tmp = readBackSide(image);
-//                    if (i == 8) {
+//                    if (i == 0) {
 //                        ImageOutputStream os = new ImageOutputStream("debugging.pgm");
 //                        os.write(image);
 //                        os.close();
@@ -84,44 +85,70 @@ public class Main {
                     //System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
                     responses[i] = readFrontSide(image, getTopRowOfAnswers(idBox));
 
-                    /*if (i == 3) {
+                    if (i == 0) {
                         ImageOutputStream os = new ImageOutputStream("debugging.pgm");
                         os.write(image);
                         os.close();
-                    }*/
-                }
-            }
-
-            //generate teacher's report
-            try (PrintWriter out = new PrintWriter(new FileWriter("teacher_report.csv"))) {
-                out.println("Student ID,Score,Points Possible,Percentage");
-                for (int i=1; i<numTests; i++) {
-                    int score = calculateScore(i);
-                    String percent = String.format("%.2f", ((double)score/NUM_QUESTIONS)*100);
-                    out.println(ids[i]+","+score+","+NUM_QUESTIONS+","+percent);
-                }
-            } catch (IOException e) {
-                System.out.println("Error writing teacher report");
-            }
-
-            //generate individual student reports
-            new File("students").mkdir();
-            for (int i=1; i<numTests; i++) {
-                try (PrintWriter out = new PrintWriter(new FileWriter("students/student" + i + "_" + ids[i] + ".csv"))) {
-                    out.println("Student ID: " + ids[i] + " Score: " + calculateScore(i) + " / " + NUM_QUESTIONS);
-                    //print column labels
-                    out.println("QUESTION,YOUR ANSWER,CORRECT ANSWER,MATCH");
-                    //print results
-                    for (int j=0; j<NUM_QUESTIONS; j++) {
-                        out.println((j+1) + "," + responses[i][j] + "," + responses[KEY][j] + "," + (isCorrect(i,j) ? "YES" : "NO"));
                     }
-                } catch (IOException e) {
-                    System.out.println("Error writing report for student " + i + "(" + ids[i] + ")");
                 }
             }
         } catch (Exception e) {
             System.out.println("something bad happened.");
             e.printStackTrace();
+        }
+
+        //generate teacher's report
+        final int NUM_QUESTIONS = (n == -1) ? guessNumberOfQuestions() : n;
+        System.out.println("Number of questions: " + NUM_QUESTIONS);
+        File teacherReport = new File("teacher_report.csv");
+        try (PrintWriter out = new PrintWriter(new FileWriter(teacherReport))) {
+            System.out.println("Writing teacher's report to " + teacherReport.getAbsolutePath());
+            out.println("Student ID,Score,Points Possible,Percentage");
+            for (int i=1; i<numTests; i++) {
+                int score = calculateScore(i, NUM_QUESTIONS);
+                String percent = String.format("%.2f", ((double)score/NUM_QUESTIONS)*100);
+                out.println(ids[i]+","+score+","+NUM_QUESTIONS+","+percent);
+            }
+        } catch (IOException e) {
+            System.out.println("Error writing teacher report");
+        }
+
+        //generate individual student reports
+        File studentFolder = new File("students");
+        studentFolder.mkdir();
+        System.out.println("Writing students' reports to " + studentFolder.getAbsolutePath() + "/");
+        for (int i=1; i<numTests; i++) {
+            try (PrintWriter out = new PrintWriter(new FileWriter("students/student" + i + "_" + ids[i] + ".csv"))) {
+                out.println("Student ID: " + ids[i] + " Score: " + calculateScore(i,NUM_QUESTIONS) + " / " + NUM_QUESTIONS);
+                //print column labels
+                out.println("QUESTION,YOUR ANSWER,CORRECT ANSWER,MATCH");
+                //print results
+                for (int j=0; j<NUM_QUESTIONS; j++) {
+                    out.println((j+1) + "," + responses[i][j] + "," + responses[KEY][j] + "," + (isCorrect(i,j) ? "YES" : "NO"));
+                }
+            } catch (IOException e) {
+                System.out.println("Error writing report for student " + i + "(" + ids[i] + ")");
+            }
+        }
+    }
+
+    private int guessNumberOfQuestions_helper(final int MAX) {
+        final char BLANK = '-';
+        int n = MAX;
+        final int KEY = 0;
+        for (int i=MAX-1; i>=0; i--) {
+            if (responses[KEY][i] == BLANK) {
+                n--;
+            }
+        }
+        return n;
+    }
+
+    private int guessNumberOfQuestions() {
+        if (doubleSided) {
+            return guessNumberOfQuestions_helper(130);
+        } else {
+            return guessNumberOfQuestions_helper(50);
         }
     }
 
@@ -129,14 +156,13 @@ public class Main {
         return idBox.getMaxY()+idBox.height*0.28;
     }
 
-    private void debugRect(Rectangle box) {
-        String foo = "left: " + box.x
-                + ", top:" + box.y
-                + ", right: " + (int)(box.getMaxX())
-                + ", bottom: " + (int)(box.getMaxY());
-        System.out.println(foo);
-
-    }
+//    private void debugRect(Rectangle box) {
+//        String foo = "left: " + box.x
+//                + ", top:" + box.y
+//                + ", right: " + (int)(box.getMaxX())
+//                + ", bottom: " + (int)(box.getMaxY());
+//        System.out.println(foo);
+//    }
 
     private void searchNeighbors(GrayImage img, int x, int y) {
         final int BLACK = 0;
@@ -245,9 +271,9 @@ public class Main {
         return guess;
     }
 
-    private int calculateScore(int student) {
+    private int calculateScore(int student, int n) {
         int score = 0;
-        for (int i=0; i<NUM_QUESTIONS; i++) {
+        for (int i=0; i<n; i++) {
             if (isCorrect(student,i)) {
                 score++;
             }
@@ -424,7 +450,9 @@ public class Main {
                 maxIndex = i;
             }
         }
-        if (max > 0.09) { //threshold based on heuristic observation
+        //threshold based on heuristic observation
+        //TODO make this a preference option
+        if (max > 0.099) {
             result = (char)(65 + maxIndex);
         }
         //System.out.println("Question#"+(q+1) + ", maxratio="+max + ", letter="+result);
@@ -483,7 +511,11 @@ public class Main {
         } else {
             in = args[0];
             //sides = Integer.parseInt(args[1]);
-            n = Integer.parseInt(args[1]);
+            if (args.length > 1) {
+                n = Integer.parseInt(args[1]);
+            } else {
+                n = -1;
+            }
         }
         new Main(in, n);
     }
