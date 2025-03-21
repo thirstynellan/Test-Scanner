@@ -55,7 +55,7 @@ public class Main {
                 for (int i = 0; i < numTests; i++) {
                     image = new GrayImage(pics.get(i*2));
                     Rectangle idBox = idBoxDimensions(image);
-                    ids[i] = getIDNumber(idBox, image);
+                    ids[i] =  getIDNumber(idBox, image);
                     //System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
                     char[] tmp = readFrontSide(image, getTopRowOfAnswers(idBox));
                     for (int j=0; j<ROWS_ON_PAGE1; j++) {
