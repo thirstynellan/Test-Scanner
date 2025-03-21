@@ -30,11 +30,11 @@ public class Main {
     private boolean doubleSided;
     private char[][] responses;//1st dimension=number of students; 2nd dim=number of questions
 
-    public Main(String inputFileName, int ds, int n) {
+    public Main(String inputFileName, /*int ds,*/ int n) {
         final int KEY = 0;
         //final int SCALED_WIDTH = 1000;//500
         //final int SCALED_HEIGHT = 1294;//547
-        doubleSided = (ds == 2);
+        //doubleSided = (ds == 2);
         NUM_QUESTIONS = n;
         idBoxPixels = new HashSet<>();
         int numTests;
@@ -44,6 +44,8 @@ public class Main {
             GrayImage image;
             var fis = new FileInputStream(inputFileName);
             List<BufferedImage> pics = extractImages(fis);
+            int guess = guess1or2sided(new GrayImage(pics.get(0)), new GrayImage(pics.get(1)));
+            doubleSided = (guess == 2);
             String[] ids;
             if (doubleSided) {
                 numTests = pics.size()/2;
@@ -52,17 +54,10 @@ public class Main {
 
                 for (int i = 0; i < numTests; i++) {
                     image = new GrayImage(pics.get(i*2));
-                    if (i != 0) { //don't read ID for answer key page
-                        Rectangle idBox = idBoxDimensions(image);
-                        ids[i] = getIDNumber(idBox, image);
-                        //System.out.println(i + ": " + " ID=" + ids[i]);
-                    }
-                    char[] tmp = readFrontSide(image);
-                    if (i == 4) {
-                        ImageOutputStream os = new ImageOutputStream("debugging.pgm");
-                        os.write(image);
-                        os.close();
-                    }
+                    Rectangle idBox = idBoxDimensions(image);
+                    ids[i] = getIDNumber(idBox, image);
+                    //System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
+                    char[] tmp = readFrontSide(image, getTopRowOfAnswers(idBox));
                     for (int j=0; j<ROWS_ON_PAGE1; j++) {
                         responses[i][j] = tmp[j];
                     }
@@ -84,17 +79,12 @@ public class Main {
                 ids = new String[numTests];
                 for (int i = 0; i < numTests; i++) {
                     image = new GrayImage(pics.get(i));
-                    //image = new GrayImage(pics.get(i).getScaledInstance(SCALED_WIDTH,SCALED_HEIGHT,java.awt.Image.SCALE_FAST));
-                    if (i != 0) {
-                        Rectangle idBox = idBoxDimensions(image);
-                        //if (i==39) debugRect(idBox);
-                        ids[i] = getIDNumber(idBox, image);
-                        System.out.println(i + ": " + " ID=" + ids[i]);
-                    }
+                    Rectangle idBox = idBoxDimensions(image);
+                    ids[i] = getIDNumber(idBox, image);
+                    //System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
+                    responses[i] = readFrontSide(image, getTopRowOfAnswers(idBox));
 
-                    responses[i] = readFrontSide(image);
-
-                    /*if (i == 12) {
+                    /*if (i == 3) {
                         ImageOutputStream os = new ImageOutputStream("debugging.pgm");
                         os.write(image);
                         os.close();
@@ -133,6 +123,10 @@ public class Main {
             System.out.println("something bad happened.");
             e.printStackTrace();
         }
+    }
+
+    private double getTopRowOfAnswers(Rectangle idBox) {
+        return idBox.getMaxY()+idBox.height*0.28;
     }
 
     private void debugRect(Rectangle box) {
@@ -190,107 +184,66 @@ public class Main {
         }
     }
 
-    private Rectangle idBoxDimensions_try1(GrayImage img) {
-        int w = img.X();
-        int h = img.Y();
-        int guessX = w/20;
-        int guessY = h/10;
-        int previousX = -1;
-        Point idBoxBL = null, idBoxTL = null, idBoxTR = null, idBoxBR = null;
-        outer1:
-        for (int y=guessY; y<h; y++) {
-            boolean blackFound = false;
-            for (int x=guessX; x<w; x++) {
-                if (img.get(x,y) == 0) {
-                    blackFound = true;
-                    if (previousX > 0) {
-                        int dx = Math.abs(x-previousX);
-                        if (dx > (int)(x*0.05)) {
-                            idBoxBL = new Point(previousX , y-1);
-                            break outer1;
-                        }
-                    }
-                    previousX = x;
-                    break;
-                }
-            }
-            if (!blackFound) {
-                idBoxBL = new Point(previousX , y-1);
-                break;
-            }
-        }
-        previousX = -1;
-        outer2:
-        for (int y=guessY; y>0; y--) {
-            boolean blackFound = false;
-            for (int x=guessX; x<w; x++) {
-                if (img.get(x,y) == 0) {
-                    blackFound = true;
-                    if (previousX > 0) {
-                        int dx = Math.abs(x-previousX);
-                        if (dx > (int)(x*0.05)) {
-                            idBoxTL = new Point(previousX,y+1);
-                            break outer2;
-                        }
-                    }
-                    previousX = x;
-                    break;
-                }
-            }
-            if (!blackFound) {
-                idBoxTL = new Point(previousX,y+1);
-                break;
-            }
-        }
-        int dx = idBoxTL.x-idBoxBL.x;
-        double heightOverWidth = 1.129;
-        int dy = (int)(dx/heightOverWidth);
-        double leftSideLength = idBoxBL.distance(idBoxTL);
-        double topSideLength = leftSideLength/heightOverWidth;
-        idBoxTR = new Point((int)(idBoxTL.x+topSideLength), idBoxTL.y+dy);
-        idBoxBR = new Point((int)(idBoxBL.x+topSideLength), idBoxBL.y+dy);
-        int rowHeight = (int)(leftSideLength/11);
-        int newTop = Math.min(idBoxTL.y+rowHeight, idBoxTR.y+rowHeight);
-        int bottom = Math.min(idBoxBL.y,idBoxBR.y);
-        int heightSansHeader = bottom-newTop;
-        Rectangle box = new Rectangle(Math.max(idBoxBL.x, idBoxTL.x),
-                newTop,
-                (int)(topSideLength*0.98), (int)(heightSansHeader*0.98));
-        return box;
-    }
-
     private Rectangle idBoxDimensions(GrayImage img) {
+        idBoxPixels.clear();
         final int BLACK = 0;
         int w = img.X();
         int h = img.Y();
         int guessX = w/20;
         int guessY = h/10;
-            int y = guessY;
-            for (int x=guessX; x<w; x++) {
-                if (img.get(x,y) == BLACK) {
-                    searchNeighbors(img, x, y);
-                    break;
-                }
+        int y = guessY;
+        for (int x=guessX; x<w; x++) {
+            if (img.get(x,y) == BLACK) {
+                searchNeighbors(img, x, y);
+                break;
             }
-        //TODO Find outliers in X and discard
-        int top = idBoxPixels.stream().mapToInt(p -> p.y).min().getAsInt();
-        int bottom = idBoxPixels.stream().mapToInt(p -> p.y).max().getAsInt();
-        int left = idBoxPixels.stream().mapToInt(p -> p.x).min().getAsInt();
-        int right = idBoxPixels.stream().mapToInt(p -> p.x).max().getAsInt();
-        int width = right-left;
-        int height = bottom-top;
-        //chop off top row (handwritten ID numbers)
-        int rowHeight = (int)(height/11.0);
-        top = top + rowHeight;
-        height = bottom - top;
-        //bring in the edges just a bit, to avoid touching the walls
-        left += (int)(width*0.01);
-        top += (int)(height*0.01);
-        width = (int)(width*0.98);
-        height = (int)(height*0.97);
-        return new Rectangle(left, top, width, height);
+        }
+        if (idBoxPixels.isEmpty()) {
+            return new Rectangle();
+        } else {
+            //TODO Find outliers in X and discard
+            int top = idBoxPixels.stream().mapToInt(p -> p.y).min().getAsInt();
+            int bottom = idBoxPixels.stream().mapToInt(p -> p.y).max().getAsInt();
+            int left = idBoxPixels.stream().mapToInt(p -> p.x).min().getAsInt();
+            int right = idBoxPixels.stream().mapToInt(p -> p.x).max().getAsInt();
+            int width = right - left;
+            int height = bottom - top;
+            //chop off top row (handwritten ID numbers)
+            int rowHeight = (int) (height / 11.0);
+            top = top + rowHeight;
+            height = bottom - top;
+            //bring in the edges just a bit, to avoid touching the walls
+            left += (int) (width * 0.01);
+            top += (int) (height * 0.01);
+            width = (int) (width * 0.98);
+            height = (int) (height * 0.97);
+            return new Rectangle(left, top, width, height);
+        }
     }
 
+    private int guess1or2sided(GrayImage page1, GrayImage page2) {
+        //It is assumed that the passed-in parameter is the
+        //2nd page of the multi-page TIF. We will try to find
+        //an ID box on this page. If we succeed, return 1,
+        //meaning page 2 is a new test. If we fail, we return 2,
+        //meaning page 2 is a continuation of the previous
+        //test.
+        int guess = 2;
+        var bounds1 = idBoxDimensions(page1);
+        var bounds2 = idBoxDimensions(page2);
+        var area1 = bounds1.getWidth() * bounds1.getHeight();
+        var area2 = bounds2.getWidth() * bounds2.getHeight();
+        //System.out.println("Area of rect1=" + area1);
+        //System.out.println("Area of rect2=" + area2);
+        if (area2 > 10 && area1 > 10) {
+            double ratio = area1/area2;
+            //System.out.println("ratio=" + ratio);
+            if (ratio > 0.9 && ratio < 1.1) {
+                guess = 1;
+            }
+        }
+        return guess;
+    }
 
     private int calculateScore(int student) {
         int score = 0;
@@ -309,8 +262,8 @@ public class Main {
 
     private String getIDNumber(Rectangle bounds, GrayImage img) {
         double[][] ratios = new double[10][7];
-        int w = img.X();
-        int h = img.Y();
+        //int w = img.X();
+        //int h = img.Y();
 
         //System.out.println(w + "," + h);
         final double top = bounds.y;
@@ -336,7 +289,11 @@ public class Main {
                 }
             }
             //System.out.println("column"+i+" max=" + max + " maxIndex="+maxIndex);
-            id += (char)(48+maxIndex);
+            if (max > 0.06) { //threshold based on heuristic observation
+                id += (char)(48 + maxIndex);
+            } else {
+                id += "-";
+            }
         }
 
         //draw the lines for debugging
@@ -396,14 +353,14 @@ public class Main {
         return studentAnswers;
     }
 
-    private char[] readFrontSide(GrayImage img) {
+    private char[] readFrontSide(GrayImage img, double top) {
 
         double[][] ratios = new double[ROWS_ON_PAGE1][COLUMNS];
         int w = img.X();
         int h = img.Y();
 
         //System.out.println(w + "," + h);
-        final double top = h*0.36;//0.37;//0.361;
+        //final double top = h*0.36;//0.37;//0.361;
         final double left1 = w*0.16;
         final double left2 = w*0.564;
         final double colWidth1 = w*0.036;
@@ -411,17 +368,17 @@ public class Main {
         final double rowHeight = h*0.0196;
 
         //draw the lines for debugging
-//        for (int i=0; i<26; i++) {
-//            for (int x = 0; x < w; x++) {
-//                img.set(x, (int)(top+(i*rowHeight)), 0);
-//            }
-//        }
-//        for (int i=0; i<11; i++) {
-//            for (int y=0; y<h; y++) {
-//                img.set((int)(left1+i*colWidth1), y, 0);
-//                img.set((int)(left2+i*colWidth2), y, 0);
-//            }
-//        }
+        for (int i=0; i<26; i++) {
+            for (int x = 0; x < w; x++) {
+                img.set(x, (int)(top+(i*rowHeight)), 0);
+            }
+        }
+        for (int i=0; i<11; i++) {
+            for (int y=0; y<h; y++) {
+                img.set((int)(left1+i*colWidth1), y, 0);
+                img.set((int)(left2+i*colWidth2), y, 0);
+            }
+        }
 
         //see which circles are filled in
         for (int i=0; i<ROWS_ON_PAGE1/2; i++) {
@@ -458,7 +415,7 @@ public class Main {
     }
 
     private char getResponseLetter(int q, double[][] ratios) {
-        //char result = 'N';
+        char result = '-';
         double max = -1;
         int maxIndex = -1;
         for (int i=0; i<COLUMNS; i++) {
@@ -467,18 +424,21 @@ public class Main {
                 maxIndex = i;
             }
         }
-        return (char)(65+maxIndex);
+        if (max > 0.09) { //threshold based on heuristic observation
+            result = (char)(65 + maxIndex);
+        }
+        //System.out.println("Question#"+(q+1) + ", maxratio="+max + ", letter="+result);
+        return result;
     }
 
-    private void showInWindow(GrayImage img) throws ImageNotSupportedException {
-        JFrame window = new JFrame();
-        JImageCanvas jpanel = new JImageCanvas(img);
-        window.setContentPane(jpanel);
-        window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        window.setSize(img.X(), img.Y());
-        window.setVisible(true);
-
-    }
+//    private void showInWindow(GrayImage img) throws ImageNotSupportedException {
+//        JFrame window = new JFrame();
+//        JImageCanvas jpanel = new JImageCanvas(img);
+//        window.setContentPane(jpanel);
+//        window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//        window.setSize(img.X(), img.Y());
+//        window.setVisible(true);
+//    }
 
     //thank you Stack Overflow!
     //https://stackoverflow.com/questions/17770071/splitting-a-multipage-tiff-image-into-individual-images-java
@@ -512,19 +472,19 @@ public class Main {
 
     public static void main(String[] args) {
         String in;
-        int sides;
+        //int sides;
         int n;
         if (args.length == 0) {
-            System.out.println("USAGE: java ScantronReader <inputfile> <#sides> <#questions>");
+            System.out.println("USAGE: java ScantronReader <inputfile> <#questions>");
             System.out.println("where <inputfile> is a grayscale multi-page TIFF image,");
-            System.out.println("and <#sides> is either 1 or 2 depending on whether your bubble sheet scans are 1- or 2-sided,");
+            //System.out.println("and <#sides> is either 1 or 2 depending on whether your bubble sheet scans are 1- or 2-sided,");
             System.out.println("and <#questions> is the number of questions in your test.");
             return;
         } else {
             in = args[0];
-            sides = Integer.parseInt(args[1]);
-            n = Integer.parseInt(args[2]);
+            //sides = Integer.parseInt(args[1]);
+            n = Integer.parseInt(args[1]);
         }
-        new Main(in, sides, n);
+        new Main(in, n);
     }
 }
