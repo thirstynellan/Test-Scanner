@@ -439,7 +439,7 @@ public class TestScorer {
         return studentAnswers;
     }
 
-    public static char[] readFrontSide(GrayImage img, double top, boolean answerKey) {
+    public char[] readFrontSide(GrayImage img, double top, boolean answerKey) {
 
         double[][] ratios = new double[ROWS_ON_PAGE1][COLUMNS];
         int w = img.X();
@@ -483,7 +483,7 @@ public class TestScorer {
         return studentAnswers;
     }
 
-    private static double getRatio(GrayImage image, double left, double top, double right, double bottom) {
+    private double getRatio(GrayImage image, double left, double top, double right, double bottom) {
         double numWhitePixels = 0;
         double numBlackPixels = 0;
         for (int x=(int)left; x<(int)right; x++) {
@@ -500,7 +500,7 @@ public class TestScorer {
 
     }
 
-    private static char getResponseLetter(int q, double[][] ratios, boolean useThreshold) {
+    private char getResponseLetter(int q, double[][] ratios, boolean useThreshold) {
         char result = '-';
         double max = -1;
         //double min = 20000;
