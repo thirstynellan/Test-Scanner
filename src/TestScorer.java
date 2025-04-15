@@ -71,11 +71,15 @@ public class TestScorer {
                 }
                 image = new GrayImage(pics.get(i * 2 + 1));
                 tmp = readBackSide(image, false);
-//                    if (i == 0) {
-//                        ImageOutputStream os = new ImageOutputStream("debugging.pgm");
-//                        os.write(image);
-//                        os.close();
-//                    }
+                /*try {
+                    if (i == 3) {
+                        ImageOutputStream os = new ImageOutputStream("debugging.pgm");
+                        os.write(image);
+                        os.close();
+                    }
+                } catch (IOException e) {
+                    //meh.
+                }*/
                 for (int j = 0; j < ROWS_ON_PAGE2; j++) {
                     responses[i][j + ROWS_ON_PAGE1] = tmp[j];
                 }
@@ -154,7 +158,7 @@ public class TestScorer {
 
         //count number of tests and number of questions
         if (meta.doubleSided) {
-            meta.numTests = pics.size() / 2;
+            meta.numTests = (pics.size()-1) / 2;
             responses = new char[pics.size()][ROWS_ON_PAGE1 + ROWS_ON_PAGE2];
 
             GrayImage image = new GrayImage(pics.get(0));
@@ -170,7 +174,7 @@ public class TestScorer {
             }
         } else {
             //just read one side
-            meta.numTests = pics.size();
+            meta.numTests = pics.size()-1;
             responses = new char[meta.numTests][ROWS_ON_PAGE1];
             GrayImage image = new GrayImage(pics.get(0));
             Rectangle idBox = idBoxDimensions(image);
@@ -363,13 +367,42 @@ public class TestScorer {
         return id;
     }
 
-    public static char[] readBackSide(GrayImage img, boolean answerKey) {
+    /**
+     * returns the Y coordinate where the top row of answers starts
+     * @param img backside of a test paper
+     * @return the Y coordinate where the top row of answer bubbles starts
+     */
+    private int findTopOfBackPage(GrayImage img) {
+        final int BLACK = 0;
+        int w = img.X();
+        int h = img.Y();
+        int guess = (int)(h*0.05);
+        int guess2 = (int)(h*0.15);
+        for (int y=guess; y<guess2; y++) {
+            int sum = 0;
+            for (int x=0; x<w; x++) {
+                if (img.get(x,y) == BLACK) {
+                    sum++;
+                }
+            }
+            //System.out.println("At y="+y+ ", dark pixels="+sum);
+            if (sum > 100) {
+                return y;
+            }
+        }
+        //fail? then return a guess
+        return (int)(h*0.105);
+    }
+
+    public char[] readBackSide(GrayImage img, boolean answerKey) {
         double[][] ratios = new double[ROWS_ON_PAGE2][COLUMNS];
         int w = img.X();
         int h = img.Y();
+        //findTopOfBackPage(img);
 
         //System.out.println(w + "," + h);
-        final double top = h*0.105;
+        //final double top = h*0.105;
+        final int top = findTopOfBackPage(img);
         final double left1 = w*0.17;
         final double left2 = w*0.571;
         final double colWidth1 = w*0.036;
@@ -492,7 +525,7 @@ public class TestScorer {
         if (!useThreshold || max/average > 1.3) {
             result = (char)(65 + maxIndex);
         }
-        System.out.println("Question#"+(q+1) + ", maxratio="+max + ", letter="+result +",max/avg="+(max/average));
+        //System.out.println("Question#"+(q+1) + ", maxratio="+max + ", letter="+result +",max/avg="+(max/average));
         return result;
     }
 
