@@ -52,7 +52,7 @@ public class TestMetaData {
         JSpinner numQuestionsSpinner;
 
         public TestMetaDataDialog(Main parent) {
-            super((JFrame)SwingUtilities.getWindowAncestor(parent), Dialog.DEFAULT_MODALITY_TYPE);
+            super(SwingUtilities.getWindowAncestor(parent), Dialog.DEFAULT_MODALITY_TYPE);
             buildGUI();
             setResizable(false);
             pack();
@@ -149,7 +149,7 @@ public class TestMetaData {
 
         private void handleActionEvent(String cmd) {
             if (cmd.equals(CANCEL_BUTTON)) {
-                //TODO do nothing
+                //do nothing
             } else if (cmd.equals(OK_BUTTON)) {
                 //scrape data from GUI, copy to meta-data
                 doubleSided = twoButton.isSelected();
@@ -159,6 +159,7 @@ public class TestMetaData {
                 mainPanel.metaDataConfirmed();
             }
             setVisible(false);
+            dispose();
         }
     }
 

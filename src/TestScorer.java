@@ -65,21 +65,34 @@ public class TestScorer {
                 listener.setValue(i);
                 listener.setString(i + "/" + meta.numTests);
                 System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
-                char[] tmp = readFrontSide(image, getTopRowOfAnswers(idBox), false);
+                char[] tmp = readFrontSide(image, idBox, false);
+//                if (i==11) {
+//                    try {
+//                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
+//                        ImageOutputStream os = new ImageOutputStream(filepath);
+//                        os.write(image);
+//                        System.out.println("Just wrote to "+filepath);
+//                        os.close();
+//                    } catch (Exception e) {
+//                        System.out.println("whatever...");
+//                    }
+//                }
                 for (int j = 0; j < ROWS_ON_PAGE1; j++) {
                     responses[i][j] = tmp[j];
                 }
                 image = new GrayImage(pics.get(i * 2 + 1));
-                tmp = readBackSide(image, false);
-                /*try {
-                    if (i == 3) {
-                        ImageOutputStream os = new ImageOutputStream("debugging.pgm");
-                        os.write(image);
-                        os.close();
-                    }
-                } catch (IOException e) {
-                    //meh.
-                }*/
+                tmp = readBackSide(image, idBox, false);
+//                if (i==11) {
+//                    try {
+//                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
+//                        ImageOutputStream os = new ImageOutputStream(filepath);
+//                        os.write(image);
+//                        System.out.println("Just wrote to "+filepath);
+//                        os.close();
+//                    } catch (Exception e) {
+//                        System.out.println("whatever...");
+//                    }
+//                }
                 for (int j = 0; j < ROWS_ON_PAGE2; j++) {
                     responses[i][j + ROWS_ON_PAGE1] = tmp[j];
                 }
@@ -94,17 +107,19 @@ public class TestScorer {
                 Rectangle idBox = idBoxDimensions(image);
                 ids[i] = getIDNumber(idBox, image);
                 //System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
-                responses[i] = readFrontSide(image, getTopRowOfAnswers(idBox), false);
+                responses[i] = readFrontSide(image, idBox, false);
 
-//                if (ids[i].equals("2078834")) {
-//                    try {
-//                        ImageOutputStream os = new ImageOutputStream("debugging.pgm");
-//                        os.write(image);
-//                        os.close();
-//                    } catch (Exception e) {
-//                        System.out.println("whatever...");
-//                    }
-//                }
+                if (i==1) {
+                    try {
+                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
+                        ImageOutputStream os = new ImageOutputStream(filepath);
+                        os.write(image);
+                        System.out.println("Just wrote to "+filepath);
+                        os.close();
+                    } catch (Exception e) {
+                        System.out.println("whatever...");
+                    }
+                }
             }
         }
     }
@@ -163,12 +178,14 @@ public class TestScorer {
 
             GrayImage image = new GrayImage(pics.get(0));
             Rectangle idBox = idBoxDimensions(image);
-            char[] tmp = readFrontSide(image, getTopRowOfAnswers(idBox), true);
+            //System.out.println("ID BOX DIMENSIONS:");
+            //debugRect(idBox);
+            char[] tmp = readFrontSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE1; j++) {
                 responses[KEY][j] = tmp[j];
             }
             image = new GrayImage(pics.get(1));
-            tmp = readBackSide(image, true);
+            tmp = readBackSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE2; j++) {
                 responses[KEY][j + ROWS_ON_PAGE1] = tmp[j];
             }
@@ -178,7 +195,7 @@ public class TestScorer {
             responses = new char[meta.numTests][ROWS_ON_PAGE1];
             GrayImage image = new GrayImage(pics.get(0));
             Rectangle idBox = idBoxDimensions(image);
-            responses[KEY] = readFrontSide(image, getTopRowOfAnswers(idBox), true);
+            responses[KEY] = readFrontSide(image, idBox, true);
         }
         meta.numQuestions = guessNumberOfQuestions();
 
@@ -189,13 +206,13 @@ public class TestScorer {
         return idBox.getMaxY()+idBox.height*0.28;
     }
 
-//    private void debugRect(Rectangle box) {
-//        String foo = "left: " + box.x
-//                + ", top:" + box.y
-//                + ", right: " + (int)(box.getMaxX())
-//                + ", bottom: " + (int)(box.getMaxY());
-//        System.out.println(foo);
-//    }
+    private void debugRect(Rectangle box) {
+        String foo = "left: " + box.x
+                + ", top:" + box.y
+                + ", right: " + (int)(box.getMaxX())
+                + ", bottom: " + (int)(box.getMaxY());
+        System.out.println(foo);
+    }
 
     private int guessNumberOfQuestions_helper(final int MAX) {
         final char BLANK = '-';
@@ -204,6 +221,8 @@ public class TestScorer {
         for (int i=MAX-1; i>=0; i--) {
             if (responses[KEY][i] == BLANK) {
                 n--;
+            } else {
+                break;
             }
         }
         return n;
@@ -239,10 +258,12 @@ public class TestScorer {
         int w = img.X();
         int h = img.Y();
         int guessX = w/20;
-        int guessY = h/10;
+        int guessY = h/8;
         int y = guessY;
         for (int x=guessX; x<w; x++) {
-            if (img.get(x,y) == BLACK) {
+            int tmp = img.get(x,y);
+            if (tmp == BLACK) {
+                //System.out.println("found a black pixel at " + x +","+y);
                 searchNeighbors(img, x, y);
                 break;
             }
@@ -346,7 +367,7 @@ public class TestScorer {
                 }
             }
             //System.out.println("column"+i+" max=" + max + " maxIndex="+maxIndex);
-            if (max > 0.06) { //threshold based on heuristic observation
+            if (max > 0.05) { //threshold based on heuristic observation
                 id += (char)(48 + maxIndex);
             } else {
                 id += "-";
@@ -354,16 +375,16 @@ public class TestScorer {
         }
 
         //draw the lines for debugging
-        /*for (int i=0; i<11; i++) {
-            for (int x = 0; x < w; x++) {
-                img.set(x, (int)(top+(i*rowHeight)), 0);
-            }
-        }
-        for (int i=0; i<8; i++) {
-            for (int y=0; y<h; y++) {
-                img.set((int)(left1+i*colWidth1), y, 0);
-            }
-        }*/
+//        for (int i=0; i<11; i++) {
+//            for (int x = 0; x < bounds.getMaxX(); x++) {
+//                img.set(x, (int)(top+(i*rowHeight)), 0);
+//            }
+//        }
+//        for (int i=0; i<8; i++) {
+//            for (int y=0; y<bounds.getMaxY(); y++) {
+//                img.set((int)(left1+i*colWidth1), y, 0);
+//            }
+//        }
         return id;
     }
 
@@ -394,33 +415,35 @@ public class TestScorer {
         return (int)(h*0.105);
     }
 
-    public char[] readBackSide(GrayImage img, boolean answerKey) {
+    public char[] readBackSide(GrayImage img, Rectangle idBox, boolean answerKey) {
         double[][] ratios = new double[ROWS_ON_PAGE2][COLUMNS];
         int w = img.X();
         int h = img.Y();
-        //findTopOfBackPage(img);
 
         //System.out.println(w + "," + h);
         //final double top = h*0.105;
         final int top = findTopOfBackPage(img);
         final double left1 = w*0.17;
         final double left2 = w*0.571;
-        final double colWidth1 = w*0.036;
-        final double colWidth2 = w*0.035;
-        final double rowHeight = h*0.0196;
+        //final double colWidth1 = w*0.036;
+        //final double colWidth2 = w*0.035;
+        //final double rowHeight = h*0.0196;
+        final double colWidth1 = idBox.getWidth()*0.135;
+        final double colWidth2 = colWidth1*0.97;
+        final double rowHeight = idBox.getHeight()*0.092;
 
         //draw the lines for debugging
-        /*for (int i=0; i<41; i++) {
-            for (int x = 0; x < w; x++) {
-                img.set(x, (int)(top+(i*rowHeight)), 0);
-            }
-        }
-        for (int i=0; i<11; i++) {
-            for (int y=0; y<h; y++) {
-                img.set((int)(left1+i*colWidth1), y, 0);
-                img.set((int)(left2+i*colWidth2), y, 0);
-            }
-        }*/
+//        for (int i=0; i<41; i++) {
+//            for (int x = 0; x < w; x++) {
+//                img.set(x, (int)(top+(i*rowHeight)), 0);
+//            }
+//        }
+//        for (int i=0; i<11; i++) {
+//            for (int y=0; y<h; y++) {
+//                img.set((int)(left1+i*colWidth1), y, 0);
+//                img.set((int)(left2+i*colWidth2), y, 0);
+//            }
+//        }
 
         //see which circles are filled in
         for (int i=0; i<ROWS_ON_PAGE2/2; i++) {
@@ -439,7 +462,7 @@ public class TestScorer {
         return studentAnswers;
     }
 
-    public char[] readFrontSide(GrayImage img, double top, boolean answerKey) {
+    public char[] readFrontSide(GrayImage img, /*double top*/Rectangle idBox, boolean answerKey) {
 
         double[][] ratios = new double[ROWS_ON_PAGE1][COLUMNS];
         int w = img.X();
@@ -447,24 +470,29 @@ public class TestScorer {
 
         //System.out.println(w + "," + h);
         //final double top = h*0.36;//0.37;//0.361;
-        final double left1 = w*0.16;
+        final double top = getTopRowOfAnswers(idBox);
+        final double left1 = idBox.getMinX()+idBox.getWidth()/7;
+//        final double left1 = w*0.16;
         final double left2 = w*0.564;
-        final double colWidth1 = w*0.036;
-        final double colWidth2 = w*0.035;
-        final double rowHeight = h*0.0196;
+        final double colWidth1 = idBox.getWidth()*0.135;
+        final double colWidth2 = colWidth1*0.97;
+//        final double colWidth1 = w*0.036;
+//        final double colWidth2 = w*0.035;
+//        final double rowHeight = h*0.0196;
+        final double rowHeight = idBox.getHeight()*0.092;
 
-        //draw the lines for debugging
-        for (int i=0; i<26; i++) {
-            for (int x = 0; x < w; x++) {
-                img.set(x, (int)(top+(i*rowHeight)), 0);
-            }
-        }
-        for (int i=0; i<11; i++) {
-            for (int y=0; y<h; y++) {
-                img.set((int)(left1+i*colWidth1), y, 0);
-                img.set((int)(left2+i*colWidth2), y, 0);
-            }
-        }
+          //draw the lines for debugging
+//        for (int i=0; i<26; i++) {
+//            for (int x = 0; x < w; x++) {
+//                img.set(x, (int)(top+(i*rowHeight)), 0);
+//            }
+//        }
+//        for (int i=0; i<11; i++) {
+//            for (int y=0; y<h; y++) {
+//                img.set((int)(left1+i*colWidth1), y, 0);
+//                img.set((int)(left2+i*colWidth2), y, 0);
+//            }
+//        }
 
         //see which circles are filled in
         for (int i=0; i<ROWS_ON_PAGE1/2; i++) {
