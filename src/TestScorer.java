@@ -137,6 +137,12 @@ public class TestScorer {
                 String percent = String.format("%.2f", ((double) score / meta.numQuestions) * 100);
                 out.println(ids[i] + "," + score + "," + meta.numQuestions + "," + percent);
             }
+            out.println();
+            out.println("PER-QUESTION PERFORMANCE");
+            for (int i=0; i<meta.numQuestions; i++) {
+                int numCorrect = questionScore(i, meta.numTests);
+                out.println("Question #" + (i+1) + "," + numCorrect + " correct,out of " + meta.numTests + " tests.");
+            }
         } catch (IOException e) {
             System.out.println("Error writing teacher report");
         }
@@ -206,6 +212,18 @@ public class TestScorer {
         return idBox.getMaxY()+idBox.height*0.28;
     }
 
+    private double getRowHeight(Rectangle idBox) {
+        return idBox.getHeight()*0.092;
+    }
+
+    private double getColumn1Width(Rectangle idBox) {
+        return idBox.getWidth()*0.135;
+    }
+
+    private double getColumn2Width(Rectangle idBox) {
+        return getColumn1Width(idBox)*0.97;
+    }
+
     private void debugRect(Rectangle box) {
         String foo = "left: " + box.x
                 + ", top:" + box.y
@@ -236,7 +254,15 @@ public class TestScorer {
         }
     }
 
-
+    private int questionScore(int q, int n) {
+        int total = 0;
+        for (int i=0; i<n; i++) {
+            if (isCorrect(i, q)) {
+                total++;
+            }
+        }
+        return total;
+    }
     private int calculateScore(int student, int n) {
         int score = 0;
         for (int i=0; i<n; i++) {
@@ -425,12 +451,9 @@ public class TestScorer {
         final int top = findTopOfBackPage(img);
         final double left1 = w*0.17;
         final double left2 = w*0.571;
-        //final double colWidth1 = w*0.036;
-        //final double colWidth2 = w*0.035;
-        //final double rowHeight = h*0.0196;
-        final double colWidth1 = idBox.getWidth()*0.135;
-        final double colWidth2 = colWidth1*0.97;
-        final double rowHeight = idBox.getHeight()*0.092;
+        final double colWidth1 = getColumn1Width(idBox);
+        final double colWidth2 = getColumn2Width(idBox);
+        final double rowHeight = getRowHeight(idBox);
 
         //draw the lines for debugging
 //        for (int i=0; i<41; i++) {
@@ -468,18 +491,13 @@ public class TestScorer {
         int w = img.X();
         int h = img.Y();
 
-        //System.out.println(w + "," + h);
-        //final double top = h*0.36;//0.37;//0.361;
         final double top = getTopRowOfAnswers(idBox);
         final double left1 = idBox.getMinX()+idBox.getWidth()/7;
 //        final double left1 = w*0.16;
         final double left2 = w*0.564;
-        final double colWidth1 = idBox.getWidth()*0.135;
-        final double colWidth2 = colWidth1*0.97;
-//        final double colWidth1 = w*0.036;
-//        final double colWidth2 = w*0.035;
-//        final double rowHeight = h*0.0196;
-        final double rowHeight = idBox.getHeight()*0.092;
+        final double colWidth1 = getColumn1Width(idBox);
+        final double colWidth2 = getColumn2Width(idBox);
+        final double rowHeight = getRowHeight(idBox);
 
           //draw the lines for debugging
 //        for (int i=0; i<26; i++) {
