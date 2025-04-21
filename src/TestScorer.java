@@ -56,9 +56,9 @@ public class TestScorer {
         statusReport = "";
         GrayImage image;
         if (meta.doubleSided) {
-            ids = new String[meta.numTests];
+            ids = new String[meta.numTests+1];
 
-            for (int i = 1; i < meta.numTests; i++) {
+            for (int i = 1; i <= meta.numTests; i++) {
                 image = new GrayImage(pics.get(i * 2));
                 Rectangle idBox = idBoxDimensions(image);
                 ids[i] = getIDNumber(idBox, image);
@@ -68,7 +68,7 @@ public class TestScorer {
                 char[] tmp = readFrontSide(image, idBox, false);
 //                if (i==11) {
 //                    try {
-//                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
+//                        String filepath = workingDir.getAbsolutePath() + "/debugging1.pgm";
 //                        ImageOutputStream os = new ImageOutputStream(filepath);
 //                        os.write(image);
 //                        System.out.println("Just wrote to "+filepath);
@@ -84,7 +84,7 @@ public class TestScorer {
                 tmp = readBackSide(image, idBox, false);
 //                if (i==11) {
 //                    try {
-//                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
+//                        String filepath = workingDir.getAbsolutePath() + "/debugging2.pgm";
 //                        ImageOutputStream os = new ImageOutputStream(filepath);
 //                        os.write(image);
 //                        System.out.println("Just wrote to "+filepath);
@@ -99,8 +99,8 @@ public class TestScorer {
             }
         } else {
             //just read one side
-            ids = new String[meta.numTests];
-            for (int i = 1; i < meta.numTests; i++) {
+            ids = new String[meta.numTests+1];
+            for (int i = 1; i <= meta.numTests; i++) {
                 listener.setValue(i);
                 listener.setString(i + "/" + meta.numTests);
                 image = new GrayImage(pics.get(i));
@@ -109,17 +109,17 @@ public class TestScorer {
                 //System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
                 responses[i] = readFrontSide(image, idBox, false);
 
-                if (i==1) {
-                    try {
-                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
-                        ImageOutputStream os = new ImageOutputStream(filepath);
-                        os.write(image);
-                        System.out.println("Just wrote to "+filepath);
-                        os.close();
-                    } catch (Exception e) {
-                        System.out.println("whatever...");
-                    }
-                }
+//                if (i==1) {
+//                    try {
+//                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
+//                        ImageOutputStream os = new ImageOutputStream(filepath);
+//                        os.write(image);
+//                        System.out.println("Just wrote to "+filepath);
+//                        os.close();
+//                    } catch (Exception e) {
+//                        System.out.println("whatever...");
+//                    }
+//                }
             }
         }
     }
@@ -132,7 +132,7 @@ public class TestScorer {
             statusReport += "Saved teacher's report to\n" + teacherReport.getAbsolutePath();
             //System.out.println("Writing teacher's report to " + teacherReport.getAbsolutePath());
             out.println("Student ID,Score,Points Possible,Percentage");
-            for (int i = 1; i < meta.numTests; i++) {
+            for (int i = 1; i <= meta.numTests; i++) {
                 int score = calculateScore(i, meta.numQuestions);
                 String percent = String.format("%.2f", ((double) score / meta.numQuestions) * 100);
                 out.println(ids[i] + "," + score + "," + meta.numQuestions + "," + percent);
@@ -155,7 +155,7 @@ public class TestScorer {
         studentFolder.mkdir();
         statusReport += "\nSaved students' reports to\n" + studentFolder.getAbsolutePath() + "/";
         //System.out.println("Writing students' reports to " + studentFolder.getAbsolutePath() + "/");
-        for (int i=1; i<meta.numTests; i++) {
+        for (int i=1; i<=meta.numTests; i++) {
             File outfile = new File(studentFolder, "student" + i + "_" + ids[i] + ".csv");
             try (PrintWriter out = new PrintWriter(new FileWriter(outfile))) {
                 out.println("Student ID: " + ids[i] + " Score: " + calculateScore(i,meta.numQuestions) + " / " + meta.numQuestions);
@@ -180,7 +180,8 @@ public class TestScorer {
         //count number of tests and number of questions
         if (meta.doubleSided) {
             meta.numTests = (pics.size()-1) / 2;
-            responses = new char[pics.size()][ROWS_ON_PAGE1 + ROWS_ON_PAGE2];
+            //responses = new char[pics.size()][ROWS_ON_PAGE1 + ROWS_ON_PAGE2];
+            responses = new char[meta.numTests+1][ROWS_ON_PAGE1 + ROWS_ON_PAGE2];
 
             GrayImage image = new GrayImage(pics.get(0));
             Rectangle idBox = idBoxDimensions(image);
@@ -198,7 +199,7 @@ public class TestScorer {
         } else {
             //just read one side
             meta.numTests = pics.size()-1;
-            responses = new char[meta.numTests][ROWS_ON_PAGE1];
+            responses = new char[meta.numTests+1][ROWS_ON_PAGE1];
             GrayImage image = new GrayImage(pics.get(0));
             Rectangle idBox = idBoxDimensions(image);
             responses[KEY] = readFrontSide(image, idBox, true);

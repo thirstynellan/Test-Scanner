@@ -27,7 +27,6 @@ public class TestMetaData {
     public int numTests;
     private static final String OK_BUTTON = "OK";
     private static final String CANCEL_BUTTON = "Cancel";
-    //private TestScorer scorer;
     private Main mainPanel;
 
     @Override
@@ -39,7 +38,7 @@ public class TestMetaData {
 
     public void showDialog(Main parent) {
         mainPanel = parent;
-        var box = new TestMetaDataDialog(parent);//(JFrame)SwingUtilities.getWindowAncestor(parent));
+        var box = new TestMetaDataDialog(parent);
         box.setVisible(true);
         //System.out.println("BOX IS VISIBLE!");
     }
