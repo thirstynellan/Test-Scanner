@@ -147,7 +147,7 @@ public class Main extends JPanel implements MouseListener {
         }
         testreader = new TestScorer(file);
         meta = testreader.extractMetaData();
-        System.out.println(meta);
+        //System.out.println(meta);
         meta.showDialog(this);
     }
 

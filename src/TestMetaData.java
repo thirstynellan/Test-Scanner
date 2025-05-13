@@ -40,7 +40,6 @@ public class TestMetaData {
         mainPanel = parent;
         var box = new TestMetaDataDialog(parent);
         box.setVisible(true);
-        //System.out.println("BOX IS VISIBLE!");
     }
 
     public class TestMetaDataDialog extends JDialog implements ActionListener {

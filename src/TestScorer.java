@@ -3,8 +3,6 @@ import jigl.image.io.ImageOutputStream;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
-import javax.swing.JDialog;
-import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
@@ -27,10 +25,8 @@ public class TestScorer {
     public static final int COLUMNS = 10;
     public static final int ROWS_ON_PAGE1 = 50;
     public static final int ROWS_ON_PAGE2 = 80;
-    //private final int NUM_QUESTIONS;
     private String statusReport;
 
-    //private boolean doubleSided;
     private String[] ids;
     private TestMetaData meta;
     private List<BufferedImage> pics;
@@ -39,7 +35,6 @@ public class TestScorer {
     private char[][] responses;//1st dimension=number of students; 2nd dim=number of questions
 
     public TestScorer(File inputFile) {
-        //final int KEY = 0;
         idBoxPixels = new HashSet<>();
         try {
             //read in image data
