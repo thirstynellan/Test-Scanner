@@ -125,13 +125,14 @@ public class TestScorer {
     }
 
     public void generateTeachersReport() {
+        final int KEY = 0;
         //generate teacher's report
         System.out.println("Number of questions: " + meta.numQuestions);
         File teacherReport = new File(workingDir, "teacher_report.csv");
         try (PrintWriter out = new PrintWriter(new FileWriter(teacherReport))) {
             statusReport += "Saved teacher's report to\n" + teacherReport.getAbsolutePath();
             //System.out.println("Writing teacher's report to " + teacherReport.getAbsolutePath());
-            out.println("Student ID,Score,Points Possible,Percentage");
+            out.println("Student ID,Score,Out of,%");
             for (int i = 1; i <= meta.numTests; i++) {
                 int score = calculateScore(i, meta.numQuestions);
                 String percent = String.format("%.2f", ((double) score / meta.numQuestions) * 100);
@@ -139,9 +140,10 @@ public class TestScorer {
             }
             out.println();
             out.println("PER-QUESTION PERFORMANCE");
+            out.println("Question #,Key,# correct,/,# tests");
             for (int i=0; i<meta.numQuestions; i++) {
                 int numCorrect = questionScore(i, meta.numTests);
-                out.println("Question #" + (i+1) + "," + numCorrect + " correct,out of " + meta.numTests + " tests.");
+                out.println((i+1) + "," + responses[KEY][i] + ","+ numCorrect + ",/," + meta.numTests);
             }
         } catch (IOException e) {
             System.out.println("Error writing teacher report");
@@ -185,12 +187,21 @@ public class TestScorer {
 
             GrayImage image = new GrayImage(pics.get(0));
             Rectangle idBox = idBoxDimensions(image);
-            //System.out.println("ID BOX DIMENSIONS:");
             //debugRect(idBox);
             char[] tmp = readFrontSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE1; j++) {
                 responses[KEY][j] = tmp[j];
             }
+//            try {
+//                String filepath = workingDir.getAbsolutePath() + "/debugging1.pgm";
+//                ImageOutputStream os = new ImageOutputStream(filepath);
+//                os.write(image);
+//                System.out.println("Just wrote to "+filepath);
+//                os.close();
+//            } catch (Exception e) {
+//                System.out.println("whatever...");
+//            }
+
             image = new GrayImage(pics.get(1));
             tmp = readBackSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE2; j++) {
@@ -226,6 +237,7 @@ public class TestScorer {
     }
 
     private void debugRect(Rectangle box) {
+        System.out.println("ID BOX DIMENSIONS:");
         String foo = "left: " + box.x
                 + ", top:" + box.y
                 + ", right: " + (int)(box.getMaxX())
@@ -257,7 +269,7 @@ public class TestScorer {
 
     private int questionScore(int q, int n) {
         int total = 0;
-        for (int i=0; i<n; i++) {
+        for (int i=1; i<=n; i++) {
             if (isCorrect(i, q)) {
                 total++;
             }
@@ -360,6 +372,13 @@ public class TestScorer {
             img.set(x+1, y+1, 200);
             if (idBoxPixels.add(new Point(x+1, y+1))) {
                 searchNeighbors(img, x+1, y+1);
+            }
+        }
+        //right neighbor
+        if (img.get(x+1, y) == BLACK) {
+            img.set(x+1, y, 200);
+            if (idBoxPixels.add(new Point(x+1, y))) {
+                searchNeighbors(img, x+1, y);
             }
         }
     }
