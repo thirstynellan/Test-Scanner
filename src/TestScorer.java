@@ -6,8 +6,11 @@ import javax.imageio.ImageReader;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,6 +29,7 @@ public class TestScorer {
     public static final int ROWS_ON_PAGE1 = 50;
     public static final int ROWS_ON_PAGE2 = 80;
     private String statusReport;
+    private final boolean DEBUG_MODE = false;
 
     private String[] ids;
     private TestMetaData meta;
@@ -47,7 +51,7 @@ public class TestScorer {
         }
     }
 
-    public void readScores(JProgressBar listener) {
+    public void readScores(JProgressBar progressBarListener) {
         statusReport = "";
         GrayImage image;
         if (meta.doubleSided) {
@@ -56,38 +60,45 @@ public class TestScorer {
             for (int i = 1; i <= meta.numTests; i++) {
                 image = new GrayImage(pics.get(i * 2));
                 Rectangle idBox = idBoxDimensions(image);
+                //FIXME YOU NEED THE ROTATE LOGIC FOR ONE-SIDED TESTS TOO!!
+                var rotated = rotateIfNecessary(idBox, pics.get(i * 2));
+                if (rotated != null) {
+                    image = rotated;
+                    idBox = idBoxDimensions(image);
+                }
                 ids[i] = getIDNumber(idBox, image);
-                listener.setValue(i);
-                listener.setString(i + "/" + meta.numTests);
-                System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
+                progressBarListener.setValue(i);
+                progressBarListener.setString(i + "/" + meta.numTests);
+                System.out.println("READING TEST#" + i + "(ID#" + ids[i] + ")");
                 char[] tmp = readFrontSide(image, idBox, false);
-//                if (i==11) {
-//                    try {
-//                        String filepath = workingDir.getAbsolutePath() + "/debugging1.pgm";
-//                        ImageOutputStream os = new ImageOutputStream(filepath);
-//                        os.write(image);
-//                        System.out.println("Just wrote to "+filepath);
-//                        os.close();
-//                    } catch (Exception e) {
-//                        System.out.println("whatever...");
-//                    }
-//                }
+                if (DEBUG_MODE) {
+                    try {
+                        String filepath = workingDir.getAbsolutePath() + "/debug" + i + "_" + ids[i] + "_side1.pgm";
+                        ImageOutputStream os = new ImageOutputStream(filepath);
+                        os.write(image);
+                        System.out.println("Just wrote to " + filepath);
+                        os.close();
+                    } catch (Exception e) {
+                        System.out.println("whatever...");
+                    }
+                }
                 for (int j = 0; j < ROWS_ON_PAGE1; j++) {
                     responses[i][j] = tmp[j];
                 }
                 image = new GrayImage(pics.get(i * 2 + 1));
                 tmp = readBackSide(image, idBox, false);
-//                if (i==11) {
-//                    try {
-//                        String filepath = workingDir.getAbsolutePath() + "/debugging2.pgm";
-//                        ImageOutputStream os = new ImageOutputStream(filepath);
-//                        os.write(image);
-//                        System.out.println("Just wrote to "+filepath);
-//                        os.close();
-//                    } catch (Exception e) {
-//                        System.out.println("whatever...");
-//                    }
-//                }
+                if (DEBUG_MODE) {
+                    try {
+                        String filepath = workingDir.getAbsolutePath() + "/debug" + i + "_" + ids[i] + "_side2.pgm";
+                        ImageOutputStream os = new ImageOutputStream(filepath);
+                        os.write(image);
+                        System.out.println("Just wrote to " + filepath);
+                        os.close();
+                    } catch (Exception e) {
+                        System.out.println("whatever...");
+                    }
+                }
+
                 for (int j = 0; j < ROWS_ON_PAGE2; j++) {
                     responses[i][j + ROWS_ON_PAGE1] = tmp[j];
                 }
@@ -96,25 +107,30 @@ public class TestScorer {
             //just read one side
             ids = new String[meta.numTests+1];
             for (int i = 1; i <= meta.numTests; i++) {
-                listener.setValue(i);
-                listener.setString(i + "/" + meta.numTests);
+                progressBarListener.setValue(i);
+                progressBarListener.setString(i + "/" + meta.numTests);
                 image = new GrayImage(pics.get(i));
                 Rectangle idBox = idBoxDimensions(image);
+                var rotated = rotateIfNecessary(idBox, pics.get(i));
+                if (rotated != null) {
+                    image = rotated;
+                    idBox = idBoxDimensions(image);
+                    if (DEBUG_MODE) System.out.println("Just rotated test#"+i);
+                }
                 ids[i] = getIDNumber(idBox, image);
-                //System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
+                System.out.println("READING TEST#" + i + "(ID#"+ids[i]+")");
                 responses[i] = readFrontSide(image, idBox, false);
-
-//                if (i==1) {
-//                    try {
-//                        String filepath = workingDir.getAbsolutePath() + "/debugging.pgm";
-//                        ImageOutputStream os = new ImageOutputStream(filepath);
-//                        os.write(image);
-//                        System.out.println("Just wrote to "+filepath);
-//                        os.close();
-//                    } catch (Exception e) {
-//                        System.out.println("whatever...");
-//                    }
-//                }
+                if (DEBUG_MODE) {
+                    try {
+                        String filepath = workingDir.getAbsolutePath() + "/debugging" + i + "_" + ids[i] + ".pgm";
+                        ImageOutputStream os = new ImageOutputStream(filepath);
+                        os.write(image);
+                        System.out.println("Just wrote to " + filepath);
+                        os.close();
+                    } catch (Exception e) {
+                        System.out.println("whatever...");
+                    }
+                }
             }
         }
     }
@@ -122,11 +138,9 @@ public class TestScorer {
     public void generateTeachersReport() {
         final int KEY = 0;
         //generate teacher's report
-        System.out.println("Number of questions: " + meta.numQuestions);
         File teacherReport = new File(workingDir, "teacher_report.csv");
         try (PrintWriter out = new PrintWriter(new FileWriter(teacherReport))) {
             statusReport += "Saved teacher's report to\n" + teacherReport.getAbsolutePath();
-            //System.out.println("Writing teacher's report to " + teacherReport.getAbsolutePath());
             out.println("Student ID,Score,Out of,%");
             for (int i = 1; i <= meta.numTests; i++) {
                 int score = calculateScore(i, meta.numQuestions);
@@ -151,7 +165,6 @@ public class TestScorer {
         File studentFolder = new File(workingDir, "students");
         studentFolder.mkdir();
         statusReport += "\nSaved students' reports to\n" + studentFolder.getAbsolutePath() + "/";
-        //System.out.println("Writing students' reports to " + studentFolder.getAbsolutePath() + "/");
         for (int i=1; i<=meta.numTests; i++) {
             File outfile = new File(studentFolder, "student" + i + "_" + ids[i] + ".csv");
             try (PrintWriter out = new PrintWriter(new FileWriter(outfile))) {
@@ -177,12 +190,10 @@ public class TestScorer {
         //count number of tests and number of questions
         if (meta.doubleSided) {
             meta.numTests = (pics.size()-1) / 2;
-            //responses = new char[pics.size()][ROWS_ON_PAGE1 + ROWS_ON_PAGE2];
             responses = new char[meta.numTests+1][ROWS_ON_PAGE1 + ROWS_ON_PAGE2];
 
             GrayImage image = new GrayImage(pics.get(0));
             Rectangle idBox = idBoxDimensions(image);
-            //debugRect(idBox);
             char[] tmp = readFrontSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE1; j++) {
                 responses[KEY][j] = tmp[j];
@@ -231,13 +242,63 @@ public class TestScorer {
         return getColumn1Width(idBox)*0.97;
     }
 
-    private void debugRect(Rectangle box) {
-        System.out.println("ID BOX DIMENSIONS:");
-        String foo = "left: " + box.x
-                + ", top:" + box.y
-                + ", right: " + (int)(box.getMaxX())
-                + ", bottom: " + (int)(box.getMaxY());
-        System.out.println(foo);
+    private double checkForRotation(Rectangle box) {
+//        System.out.println("ID BOX DIMENSIONS:");
+//        Point bottommostPoint = idBoxPixels.stream().max(Comparator.comparingInt(p -> p.y)).get();
+//        Point topmostPoint = idBoxPixels.stream().min(Comparator.comparingInt(p -> p.y)).get();
+//        Point leftmostPoint = idBoxPixels.stream().min(Comparator.comparingInt(p -> p.x)).get();
+//        Point rightmostPoint = idBoxPixels.stream().max(Comparator.comparingInt(p -> p.x)).get();
+
+        Point center = new Point((int)box.getCenterX(), (int)box.getCenterY());
+        double tlDist, blDist, trDist, brDist;
+        tlDist = blDist = trDist = brDist = Double.MIN_VALUE;
+        Point topLeft = new Point(),
+                bottomLeft = new Point(),
+                topRight = new Point(),
+                bottomRight = new Point();
+        for (var p : idBoxPixels) {
+            final double dist = Point2D.distanceSq(p.x, p.y, center.x, center.y);
+            if (p.x < center.x && p.y < center.y) {
+                //top left
+                if (dist > tlDist) {
+                    tlDist = dist;
+                    topLeft.setLocation(p);
+                }
+            } else if (p.x < center.x && p.y > center.y) {
+                //bottom left
+                if (dist > blDist) {
+                    blDist = dist;
+                    bottomLeft.setLocation(p);
+                }
+            } else if (p.x > center.x && p.y < center.y) {
+                //top right
+                if (dist > trDist) {
+                    trDist = dist;
+                    topRight.setLocation(p);
+                }
+            } else {
+                //bottom right
+                if (dist > brDist) {
+                    brDist = dist;
+                    bottomRight.setLocation(p);
+                }
+            }
+        }
+        if (DEBUG_MODE) {
+            System.out.println("TL=" + topLeft);
+            System.out.println("BL=" + bottomLeft);
+            System.out.println("BR=" + bottomRight);
+            System.out.println("TR=" + topRight);
+        }
+        double angle;
+        if (topLeft.x < bottomLeft.x) {
+            //leaning counterclockwise
+            angle = Math.atan2(bottomLeft.y-topLeft.y, bottomLeft.x-topLeft.x);
+        } else {
+            //TODO what to do if the paper leans too far clockwise?
+            angle = 0;
+        }
+        return angle;
     }
 
     private int guessNumberOfQuestions_helper(final int MAX) {
@@ -471,17 +532,19 @@ public class TestScorer {
         final double rowHeight = getRowHeight(idBox);
 
         //draw the lines for debugging
-//        for (int i=0; i<41; i++) {
-//            for (int x = 0; x < w; x++) {
-//                img.set(x, (int)(top+(i*rowHeight)), 0);
-//            }
-//        }
-//        for (int i=0; i<11; i++) {
-//            for (int y=0; y<h; y++) {
-//                img.set((int)(left1+i*colWidth1), y, 0);
-//                img.set((int)(left2+i*colWidth2), y, 0);
-//            }
-//        }
+        if (DEBUG_MODE) {
+            for (int i = 0; i < 41; i++) {
+                for (int x = 0; x < w; x++) {
+                    img.set(x, (int) (top + (i * rowHeight)), 0);
+                }
+            }
+            for (int i = 0; i < 11; i++) {
+                for (int y = 0; y < h; y++) {
+                    img.set((int) (left1 + i * colWidth1), y, 0);
+                    img.set((int) (left2 + i * colWidth2), y, 0);
+                }
+            }
+        }
 
         //see which circles are filled in
         for (int i=0; i<ROWS_ON_PAGE2/2; i++) {
@@ -515,17 +578,19 @@ public class TestScorer {
         final double rowHeight = getRowHeight(idBox);
 
           //draw the lines for debugging
-//        for (int i=0; i<26; i++) {
-//            for (int x = 0; x < w; x++) {
-//                img.set(x, (int)(top+(i*rowHeight)), 0);
-//            }
-//        }
-//        for (int i=0; i<11; i++) {
-//            for (int y=0; y<h; y++) {
-//                img.set((int)(left1+i*colWidth1), y, 0);
-//                img.set((int)(left2+i*colWidth2), y, 0);
-//            }
-//        }
+        if (DEBUG_MODE) {
+            for (int i = 0; i < 26; i++) {
+                for (int x = 0; x < w; x++) {
+                    img.set(x, (int) (top + (i * rowHeight)), 0);
+                }
+            }
+            for (int i = 0; i < 11; i++) {
+                for (int y = 0; y < h; y++) {
+                    img.set((int) (left1 + i * colWidth1), y, 0);
+                    img.set((int) (left2 + i * colWidth2), y, 0);
+                }
+            }
+        }
 
         //see which circles are filled in
         for (int i=0; i<ROWS_ON_PAGE1/2; i++) {
@@ -646,6 +711,32 @@ public class TestScorer {
 
     public void notifyUser(JPanel pane) {
         JOptionPane.showMessageDialog(pane, statusReport, "SCORED!", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private GrayImage rotateIfNecessary(Rectangle box, BufferedImage bimg) {
+        double tilt = checkForRotation(box);
+        if (tilt > 1.0) {
+            //Thank you, https://cloudinary.com/guides/image-effects/how-to-rotate-an-image-with-java
+            //for the tutorial on image rotation!
+            if (DEBUG_MODE) System.out.println("TILT: " + tilt);
+            var angle = Math.PI/2 - tilt;
+            int width = bimg.getWidth();
+            int height = bimg.getHeight();
+            int newWidth = (int) Math.abs(width * Math.cos(angle)) + (int) Math.abs(height * Math.sin(angle));
+            int newHeight = (int) Math.abs(height * Math.cos(angle)) + (int) Math.abs(width * Math.sin(angle));
+            BufferedImage outputImage = new BufferedImage(newWidth, newHeight, bimg.getType());
+            AffineTransform transform = new AffineTransform();
+            transform.rotate(angle, newWidth / 2, newHeight / 2);
+            transform.translate((newWidth - width) / 2, (newHeight - height) / 2);
+            Graphics2D g2d = outputImage.createGraphics();
+            g2d.setTransform(transform);
+            g2d.drawImage(bimg, 0, 0, null);
+            g2d.dispose();
+            return new GrayImage(outputImage);
+            //idBox = idBoxDimensions(image);
+        } else {
+            return null;
+        }
     }
 
 
