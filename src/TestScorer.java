@@ -59,6 +59,7 @@ public class TestScorer {
 
             for (int i = 1; i <= meta.numTests; i++) {
                 image = new GrayImage(pics.get(i * 2));
+                cleanupSinglePixels(image);
                 Rectangle idBox = idBoxDimensions(image);
                 //FIXME YOU NEED THE ROTATE LOGIC FOR ONE-SIDED TESTS TOO!!
                 var rotated = rotateIfNecessary(idBox, pics.get(i * 2));
@@ -86,6 +87,7 @@ public class TestScorer {
                     responses[i][j] = tmp[j];
                 }
                 image = new GrayImage(pics.get(i * 2 + 1));
+                cleanupSinglePixels(image);
                 tmp = readBackSide(image, idBox, false);
                 if (DEBUG_MODE) {
                     try {
@@ -110,6 +112,7 @@ public class TestScorer {
                 progressBarListener.setValue(i);
                 progressBarListener.setString(i + "/" + meta.numTests);
                 image = new GrayImage(pics.get(i));
+                cleanupSinglePixels(image);
                 Rectangle idBox = idBoxDimensions(image);
                 var rotated = rotateIfNecessary(idBox, pics.get(i));
                 if (rotated != null) {
@@ -129,6 +132,32 @@ public class TestScorer {
                         os.close();
                     } catch (Exception e) {
                         System.out.println("whatever...");
+                    }
+                }
+            }
+        }
+    }
+
+    private void cleanupSinglePixels(GrayImage img) {
+        final int BLACK = 0;
+        final int WHITE = 255;//?
+        int w = img.X();
+        int h = img.Y();
+        for (int y=1; y<h-1; y++) {
+            for (int x=1; x<w-1; x++) {
+                //if a pixel is black, see if it is all by itself.
+                //if the 8 pixels around it are all white, then
+                //consider it to be noise, and turn it white.
+                if (img.get(x,y) == BLACK) {
+                    if (img.get(x-1, y-1) != BLACK &&
+                            img.get(x, y-1) != BLACK &&
+                            img.get(x+1, y-1) != BLACK &&
+                            img.get(x-1, y) != BLACK &&
+                            img.get(x+1, y) != BLACK &&
+                            img.get(x-1, y+1) != BLACK &&
+                            img.get(x, y+1) != BLACK &&
+                            img.get(x+1, y+1) != BLACK) {
+                        img.set(x,y,WHITE);
                     }
                 }
             }
@@ -193,6 +222,7 @@ public class TestScorer {
             responses = new char[meta.numTests+1][ROWS_ON_PAGE1 + ROWS_ON_PAGE2];
 
             GrayImage image = new GrayImage(pics.get(0));
+            cleanupSinglePixels(image);
             Rectangle idBox = idBoxDimensions(image);
             char[] tmp = readFrontSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE1; j++) {
@@ -209,6 +239,7 @@ public class TestScorer {
 //            }
 
             image = new GrayImage(pics.get(1));
+            cleanupSinglePixels(image);
             tmp = readBackSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE2; j++) {
                 responses[KEY][j + ROWS_ON_PAGE1] = tmp[j];
@@ -218,6 +249,7 @@ public class TestScorer {
             meta.numTests = pics.size()-1;
             responses = new char[meta.numTests+1][ROWS_ON_PAGE1];
             GrayImage image = new GrayImage(pics.get(0));
+            cleanupSinglePixels(image);
             Rectangle idBox = idBoxDimensions(image);
             responses[KEY] = readFrontSide(image, idBox, true);
         }
@@ -738,16 +770,5 @@ public class TestScorer {
             return null;
         }
     }
-
-
-//    private void showInWindow(GrayImage img) throws ImageNotSupportedException {
-//        JFrame window = new JFrame();
-//        JImageCanvas jpanel = new JImageCanvas(img);
-//        window.setContentPane(jpanel);
-//        window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//        window.setSize(img.X(), img.Y());
-//        window.setVisible(true);
-//    }
-
 
 }
