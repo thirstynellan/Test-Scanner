@@ -28,7 +28,7 @@ public class TestScorer {
     public static final int COLUMNS = 10;
     public static final int ROWS_ON_PAGE1 = 50;
     public static final int ROWS_ON_PAGE2 = 80;
-    private String statusReport;
+    private String statusReport ;
     private final boolean DEBUG_MODE = false;
 
     private String[] ids;
