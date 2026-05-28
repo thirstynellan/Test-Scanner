@@ -31,6 +31,10 @@ public class TestScorer {
     private String statusReport ;
     private final boolean DEBUG_MODE = false;
 
+    private final int BLACK = 0;
+    private final int GREY = 200;
+    private final int WHITE = 255;
+    private final int KEY = 0;
     private String[] ids;
     private TestMetaData meta;
     private List<BufferedImage> pics;
@@ -60,6 +64,7 @@ public class TestScorer {
             for (int i = 1; i <= meta.numTests; i++) {
                 image = new GrayImage(pics.get(i * 2));
                 cleanupSinglePixels(image);
+                //thickenLines(image);
                 Rectangle idBox = idBoxDimensions(image);
                 //FIXME YOU NEED THE ROTATE LOGIC FOR ONE-SIDED TESTS TOO!!
                 var rotated = rotateIfNecessary(idBox, pics.get(i * 2));
@@ -113,6 +118,7 @@ public class TestScorer {
                 progressBarListener.setString(i + "/" + meta.numTests);
                 image = new GrayImage(pics.get(i));
                 cleanupSinglePixels(image);
+                //thickenLines(image);
                 Rectangle idBox = idBoxDimensions(image);
                 var rotated = rotateIfNecessary(idBox, pics.get(i));
                 if (rotated != null) {
@@ -139,8 +145,6 @@ public class TestScorer {
     }
 
     private void cleanupSinglePixels(GrayImage img) {
-        final int BLACK = 0;
-        final int WHITE = 255;//?
         int w = img.X();
         int h = img.Y();
         for (int y=1; y<h-1; y++) {
@@ -164,8 +168,41 @@ public class TestScorer {
         }
     }
 
+//    private GrayImage copy(GrayImage img) {
+//        GrayImage copy = new GrayImage(img.X(), img.Y());
+//        for (int y=0; y<img.Y(); y++) {
+//            for (int x = 0; x < img.X(); x++) {
+//                copy.set(x,y,img.get(x,y));
+//            }
+//        }
+//        return copy;
+//    }
+
+//    private void thickenLines(GrayImage img) {
+//        final int BLACK = 0;
+//        final int WHITE = 255;//?
+//        GrayImage copy = copy(img);
+//        int w = img.X();
+//        int h = img.Y();
+//        for (int y=1; y<h-1; y++) {
+//            for (int x=1; x<w-1; x++) {
+//                //if a pixel is black, make its neighbors black
+//                if (copy.get(x,y) == BLACK) {
+//                    img.set(x-1, y-1, BLACK);
+//                    img.set(x, y-1, BLACK);
+//                    img.set(x+1, y-1, BLACK);
+//                    img.set(x-1, y, BLACK);
+//                    img.set(x+1, y, BLACK);
+//                    img.set(x-1, y+1, BLACK);
+//                    img.set(x, y+1, BLACK);
+//                    img.set(x+1, y+1, BLACK);
+//                }
+//            }
+//        }
+//    }
+
     public void generateTeachersReport() {
-        final int KEY = 0;
+        //final int KEY = 0;
         //generate teacher's report
         File teacherReport = new File(workingDir, "teacher_report.csv");
         try (PrintWriter out = new PrintWriter(new FileWriter(teacherReport))) {
@@ -189,7 +226,7 @@ public class TestScorer {
     }
 
     public void generateStudentReports() {
-        final int KEY = 0;
+        //final int KEY = 0;
         //generate individual student reports
         File studentFolder = new File(workingDir, "students");
         studentFolder.mkdir();
@@ -211,7 +248,7 @@ public class TestScorer {
     }
 
     public TestMetaData extractMetaData() {
-        final int KEY = 0;
+        //final int KEY = 0;
         meta = new TestMetaData();
         int guess = guess1or2sided(new GrayImage(pics.get(0)), new GrayImage(pics.get(1)));
         meta.doubleSided = (guess == 2);
@@ -223,6 +260,7 @@ public class TestScorer {
 
             GrayImage image = new GrayImage(pics.get(0));
             cleanupSinglePixels(image);
+            //thickenLines(image);
             Rectangle idBox = idBoxDimensions(image);
             char[] tmp = readFrontSide(image, idBox, true);
             for (int j = 0; j < ROWS_ON_PAGE1; j++) {
@@ -335,7 +373,7 @@ public class TestScorer {
 
     private int guessNumberOfQuestions_helper(final int MAX) {
         final char BLANK = '-';
-        final int KEY = 0;
+        //final int KEY = 0;
         int n = MAX;
         for (int i=MAX-1; i>=0; i--) {
             if (responses[KEY][i] == BLANK) {
@@ -375,23 +413,41 @@ public class TestScorer {
     }
 
     private boolean isCorrect(int student, int q) {
-        final int KEY = 0;
+        //final int KEY = 0;
         return responses[KEY][q] == responses[student][q];
     }
 
     private Rectangle idBoxDimensions(GrayImage img) {
         idBoxPixels.clear();
-        final int BLACK = 0;
+        //final int BLACK = 0;
         int w = img.X();
         int h = img.Y();
-        int guessX = w/20;
-        int guessY = h/8;
-        int y = guessY;
-        for (int x=guessX; x<w; x++) {
+        final int guessX = w/20;
+        final int[] guessY = {(int)(h*0.15), (int)(h*0.2),(int)(h*0.25),(int)(h*0.3)};
+        for (int y : guessY) {
+            for (int x=guessX; x<w/3; x++) {
+                int tmp = img.get(x,y);
+                if (tmp == BLACK) {
+                    d("found a black pixel at " + x +","+y);
+                    searchNeighbors(img, x, y);
+                    break;
+                } else if (tmp == GREY) {
+                    d("gray pixel at " + x + ","+y+"! backing out.");
+                    break;
+                }
+            }
+        }
+        //last-ditch effort: try from above
+        final int starty = h/20;
+        final int x = (int)(w*0.38);
+        for (int y=starty; y<guessY[0]; y++) {
             int tmp = img.get(x,y);
             if (tmp == BLACK) {
-                //System.out.println("found a black pixel at " + x +","+y);
+                d("found a black pixel at " + x +","+y);
                 searchNeighbors(img, x, y);
+                break;
+            } else if (tmp == GREY) {
+                d("gray pixel at " + x + ","+y+"! backing out.");
                 break;
             }
         }
@@ -419,54 +475,61 @@ public class TestScorer {
     }
 
     private void searchNeighbors(GrayImage img, int x, int y) {
-        final int BLACK = 0;
+        //final int BLACK = 0;
         //top neighbor
         if (img.get(x, y-1) == BLACK) {
-            img.set(x, y-1, 200);
+            img.set(x, y-1, GREY);
             if (idBoxPixels.add(new Point(x, y-1))) {
                 searchNeighbors(img, x, y - 1);
             }
         }
         //top-left neighbor
         if (img.get(x-1, y-1) == BLACK) {
-            img.set(x-1, y-1, 200);
-            if (idBoxPixels.add(new Point(x, y-1))) {
+            img.set(x-1, y-1, GREY);
+            if (idBoxPixels.add(new Point(x-1, y-1))) {
                 searchNeighbors(img, x-1, y - 1);
             }
         }
         //top-right neighbor
         if (img.get(x+1, y-1) == BLACK) {
-            img.set(x+1, y-1, 200);
+            img.set(x+1, y-1, GREY);
             if (idBoxPixels.add(new Point(x+1, y-1))) {
                 searchNeighbors(img, x+1, y - 1);
             }
         }
         //bottom neighbor
         if (img.get(x, y+1) == BLACK) {
-            img.set(x, y+1, 200);
+            img.set(x, y+1, GREY);
             if (idBoxPixels.add(new Point(x, y+1))) {
                 searchNeighbors(img, x, y+1);
             }
         }
         //bottom-left neighbor
         if (img.get(x-1, y+1) == BLACK) {
-            img.set(x-1, y+1, 200);
-            if (idBoxPixels.add(new Point(x, y+1))) {
+            img.set(x-1, y+1, GREY);
+            if (idBoxPixels.add(new Point(x-1, y+1))) {
                 searchNeighbors(img, x-1, y+1);
             }
         }
         //bottom-right neighbor
         if (img.get(x+1, y+1) == BLACK) {
-            img.set(x+1, y+1, 200);
+            img.set(x+1, y+1, GREY);
             if (idBoxPixels.add(new Point(x+1, y+1))) {
                 searchNeighbors(img, x+1, y+1);
             }
         }
         //right neighbor
         if (img.get(x+1, y) == BLACK) {
-            img.set(x+1, y, 200);
+            img.set(x+1, y, GREY);
             if (idBoxPixels.add(new Point(x+1, y))) {
                 searchNeighbors(img, x+1, y);
+            }
+        }
+        //left neighbor
+        if (img.get(x-1, y) == BLACK) {
+            img.set(x-1, y, GREY);
+            if (idBoxPixels.add(new Point(x-1, y))) {
+                searchNeighbors(img, x-1, y);
             }
         }
     }
@@ -528,11 +591,15 @@ public class TestScorer {
      * @return the Y coordinate where the top row of answer bubbles starts
      */
     private int findTopOfBackPage(GrayImage img) {
-        final int BLACK = 0;
+        //final int BLACK = 0;
         int w = img.X();
         int h = img.Y();
+        int numDarkRows = 0;
         int guess = (int)(h*0.05);
         int guess2 = (int)(h*0.15);
+        //occasionally the printer will insert a "smear" of black pixels
+        //across the top of the page. Thus, don't stop at the first sign
+        //of black pixels. Stop once you reach two rows consecutive of black pixels.
         for (int y=guess; y<guess2; y++) {
             int sum = 0;
             for (int x=0; x<w; x++) {
@@ -542,7 +609,13 @@ public class TestScorer {
             }
             //System.out.println("At y="+y+ ", dark pixels="+sum);
             if (sum > 100) {
-                return y;
+                numDarkRows++;
+            } else {
+                numDarkRows = 0;
+            }
+            if (numDarkRows >= 2) {
+                //return the y coordinate where you found the first dark pixels.
+                return y-1;
             }
         }
         //fail? then return a guess
@@ -595,7 +668,7 @@ public class TestScorer {
         return studentAnswers;
     }
 
-    public char[] readFrontSide(GrayImage img, /*double top*/Rectangle idBox, boolean answerKey) {
+    public char[] readFrontSide(GrayImage img, Rectangle idBox, boolean answerKey) {
 
         double[][] ratios = new double[ROWS_ON_PAGE1][COLUMNS];
         int w = img.X();
@@ -769,6 +842,10 @@ public class TestScorer {
         } else {
             return null;
         }
+    }
+
+    private void d(Object o) {
+        if (DEBUG_MODE) System.out.println(o);
     }
 
 }
